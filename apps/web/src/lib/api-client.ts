@@ -58,6 +58,30 @@ export const documentsApi = {
     apiRequest<{ success: boolean }>(`/documents/${id}`, {
       method: 'DELETE',
     }),
+  extractFile: async (file: File): Promise<{ title: string; content: string; format: string }> => {
+    const token = await getAuthToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/documents/extract-file`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let msg = 'Failed to extract text from document';
+      try {
+        const err = await response.json();
+        msg = err.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+
+    return response.json();
+  },
 };
 
 // Chat API Methods

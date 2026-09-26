@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Your KnowledgeBase AI Account</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #090d16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #f1f5f9;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #090d16; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <!-- Main Container -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);">
+          
+          <!-- Top Accent Bar -->
+          <tr>
+            <td height="4" style="background: linear-gradient(90deg, #3b82f6 0%, #6366f1 50%, #a855f7 100%);"></td>
+          </tr>
+
+          <!-- Header / Brand -->
+          <tr>
+            <td style="padding: 36px 36px 20px 36px; text-align: center;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #2563eb, #4f46e5); border-radius: 12px; width: 44px; height: 44px; text-align: center; vertical-align: middle;">
+                    <span style="color: #ffffff; font-size: 22px; font-weight: bold; line-height: 44px;">✦</span>
+                  </td>
+                  <td style="padding-left: 12px; text-align: left;">
+                    <div style="font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+                      Knowledge<span style="color: #3b82f6;">Base</span> AI
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 10px 36px 36px 36px; text-align: left;">
+              <h1 style="font-size: 22px; font-weight: 700; color: #ffffff; margin: 0 0 16px 0; letter-spacing: -0.3px;">
+                Confirm your account
+              </h1>
+              <p style="font-size: 15px; line-height: 24px; color: #94a3b8; margin: 0 0 24px 0;">
+                Welcome to <strong>KnowledgeBase AI</strong>! You're one click away from querying your private documents with context-aware RAG, pgvector search, and swappable AI providers.
+              </p>
+              <p style="font-size: 15px; line-height: 24px; color: #94a3b8; margin: 0 0 32px 0;">
+                Click the button below to verify your email address and activate your account:
+              </p>
+
+              <!-- CTA Button -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 32px;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; background-color: #2563eb; background-image: linear-gradient(180deg, #3b82f6, #2563eb); color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 14px 36px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4); border: 1px solid rgba(255, 255, 255, 0.1);">
+                      Verify My Account &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Alternative Link -->
+              <div style="background-color: #090d16; border: 1px solid #1e293b; border-radius: 10px; padding: 14px; margin-bottom: 24px;">
+                <p style="font-size: 12px; color: #64748b; margin: 0 0 6px 0;">
+                  Button not working? Copy and paste this URL into your browser:
+                </p>
+                <p style="font-size: 12px; color: #38bdf8; word-break: break-all; margin: 0; font-family: monospace;">
+                  {{ .ConfirmationURL }}
+                </p>
+              </div>
+
+              <!-- Security Notice -->
+              <p style="font-size: 13px; line-height: 20px; color: #64748b; margin: 0; border-top: 1px solid #1e293b; padding-top: 20px;">
+                🔒 If you did not sign up for KnowledgeBase AI, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #090d16; padding: 20px 36px; text-align: center; border-top: 1px solid #1e293b;">
+              <p style="font-size: 12px; color: #475569; margin: 0;">
+                &copy; 2026 KnowledgeBase AI &bull; Powered by Supabase pgvector & Next.js
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

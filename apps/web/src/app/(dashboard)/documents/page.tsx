@@ -31,6 +31,7 @@ export default function DocumentsPage() {
   const [content, setContent] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const fetchDocuments = async () => {
@@ -123,23 +124,27 @@ export default function DocumentsPage() {
     }
   };
 
-  // Text File Upload / Extraction helper
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Universal File Upload & Text Extraction (PDF, DOCX, CSV, JSON, HTML, Markdown, TXT)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!title) {
-      // Auto-set title from file name without extension
-      const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
-      setTitle(fileNameWithoutExt);
-    }
+    setIsExtracting(true);
+    setFormError(null);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      setContent(text);
-    };
-    reader.readAsText(file);
+    try {
+      const result = await documentsApi.extractFile(file);
+      if (!title.trim()) {
+        setTitle(result.title);
+      }
+      setContent(result.content);
+    } catch (err: any) {
+      setFormError(`File upload error: ${err.message || 'Could not parse document'}`);
+    } finally {
+      setIsExtracting(false);
+      // Reset input so re-selecting same file triggers onChange
+      e.target.value = '';
+    }
   };
 
   // Extract all unique tags
@@ -351,13 +356,23 @@ export default function DocumentsPage() {
                   <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
                     Content (Markdown Supported)
                   </label>
-                  {/* File extraction input */}
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition">
-                    <UploadCloud className="w-3.5 h-3.5" />
-                    <span>Upload Text/MD File</span>
+                  {/* Universal File extraction input */}
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/20 transition">
+                    {isExtracting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Parsing Document...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>Upload Any Doc (PDF, Word, CSV, JSON, MD, TXT)</span>
+                      </>
+                    )}
                     <input
                       type="file"
-                      accept=".txt,.md,.markdown,.json"
+                      disabled={isExtracting}
+                      accept=".pdf,.docx,.txt,.md,.markdown,.csv,.tsv,.json,.html,.htm,.log,.rtf"
                       onChange={handleFileUpload}
                       className="hidden"
                     />

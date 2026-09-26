@@ -9,11 +9,16 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { DocumentsService } from './documents.service';
+import { DocumentExtractorService } from './document-extractor.service';
 import { CreateDocumentDto, UpdateDocumentDto } from './dto/create-document.dto';
 import { AuthenticatedUser, IDocument } from '@kb/types';
 
@@ -22,7 +27,10 @@ import { AuthenticatedUser, IDocument } from '@kb/types';
 @UseGuards(SupabaseAuthGuard)
 @Controller('documents')
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly documentExtractorService: DocumentExtractorService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List all documents for the authenticated user' })
@@ -66,5 +74,18 @@ export class DocumentsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
     return this.documentsService.remove(id, user.id);
+  }
+
+  @Post('extract-file')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Extract text from any document format (PDF, DOCX, CSV, JSON, HTML, TXT, MD)' })
+  @ApiConsumes('multipart/form-data')
+  async extractFile(
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required in multipart/form-data under key "file"');
+    }
+    return this.documentExtractorService.extractText(file);
   }
 }
