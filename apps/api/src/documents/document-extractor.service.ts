@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import * as mammoth from 'mammoth';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require('pdf-parse');
+const pdfParseModule = require('pdf-parse');
 
 export interface ExtractedDocument {
   title: string;
@@ -29,8 +29,25 @@ export class DocumentExtractorService {
     try {
       switch (extension) {
         case 'pdf': {
-          const pdfData = await pdfParse(file.buffer);
-          content = pdfData.text?.trim() || '';
+          if (pdfParseModule?.PDFParse) {
+            const parser = new pdfParseModule.PDFParse({ data: file.buffer });
+            try {
+              const res = await parser.getText();
+              content = res?.text?.trim() || '';
+            } finally {
+              if (typeof parser.destroy === 'function') {
+                await parser.destroy();
+              }
+            }
+          } else if (typeof pdfParseModule === 'function') {
+            const pdfData = await pdfParseModule(file.buffer);
+            content = pdfData.text?.trim() || '';
+          } else if (typeof pdfParseModule?.default === 'function') {
+            const pdfData = await pdfParseModule.default(file.buffer);
+            content = pdfData.text?.trim() || '';
+          } else {
+            throw new Error('PDF parsing library could not be initialized');
+          }
           break;
         }
 
