@@ -1,0 +1,33 @@
+{
+  "name": "goodspeed-knowledge-base",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-Powered Knowledge Base with RAG, Swappable AI Providers, and Supabase pgvector",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run --prefix apps/api dev",
+    "dev:web": "npm run --prefix apps/web dev",
+    "build": "turbo run build",
+    "build:api": "npm run --prefix apps/api build",
+    "build:web": "npm run --prefix apps/web build",
+    "type-check": "npm run --prefix apps/api type-check && npm run --prefix apps/web type-check",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "@turbo/windows-64": "^2.11.4",
+    "concurrently": "^9.2.4",
+    "prettier": "^3.5.0",
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "npm@11.13.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
