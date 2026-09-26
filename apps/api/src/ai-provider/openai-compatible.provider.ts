@@ -117,15 +117,42 @@ export class OpenAiCompatibleProvider implements IAiProvider {
 
       for (let i = 0; i < texts.length; i += BATCH_SIZE) {
         const batch = texts.slice(i, i + BATCH_SIZE);
-        const response = await this.embeddingClient.embeddings.create({
-          model: this.embeddingModel,
-          input: batch,
-        });
+        let response: any;
+        try {
+          response = await this.embeddingClient.embeddings.create({
+            model: this.embeddingModel,
+            input: batch,
+            dimensions: this.embeddingDimension,
+          } as any);
+        } catch (dimError: any) {
+          this.logger.warn(
+            `Embeddings create with dimensions=${this.embeddingDimension} failed: ${dimError.message}. Retrying without dimensions parameter.`,
+          );
+          response = await this.embeddingClient.embeddings.create({
+            model: this.embeddingModel,
+            input: batch,
+          });
+        }
 
-        // Ensure embeddings maintain same order as input
+        // Ensure embeddings maintain same order as input and match expected dimensions
         const sorted = response.data
-          .sort((a, b) => a.index - b.index)
-          .map((item) => item.embedding);
+          .sort((a: any, b: any) => a.index - b.index)
+          .map((item: any) => {
+            let vec: number[] = item.embedding;
+            if (this.embeddingDimension && vec.length !== this.embeddingDimension) {
+              if (vec.length > this.embeddingDimension) {
+                this.logger.debug(
+                  `Truncating returned embedding from ${vec.length} to configured ${this.embeddingDimension} dimensions`,
+                );
+                vec = vec.slice(0, this.embeddingDimension);
+                const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
+                if (norm > 0) {
+                  vec = vec.map((v) => v / norm);
+                }
+              }
+            }
+            return vec;
+          });
 
         allEmbeddings.push(...sorted);
       }
