@@ -217,9 +217,9 @@ export default function DocumentsPage() {
   });
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden p-6 md:p-10">
+    <div className="flex-1 flex flex-col h-full overflow-hidden p-4 sm:p-6 md:p-10">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[#1d1d1f]">Documents</h1>
           <p className="text-sm text-zinc-500 mt-1 font-normal">
@@ -393,9 +393,9 @@ export default function DocumentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-2xl bg-white border border-zinc-200/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="px-8 py-5 border-b border-zinc-100 flex items-center justify-between">
+            <div className="px-5 sm:px-8 py-4 sm:py-5 border-b border-zinc-100 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-zinc-900">
+                <h2 className="text-base sm:text-lg font-bold text-zinc-900">
                   {editingDoc ? 'Edit Document' : 'Add New Document'}
                 </h2>
                 <p className="text-xs text-zinc-400">Embeddings update automatically upon save.</p>
@@ -409,7 +409,7 @@ export default function DocumentsPage() {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSave} className="flex-1 flex flex-col overflow-y-auto p-8 space-y-5">
+            <form onSubmit={handleSave} className="flex-1 flex flex-col overflow-y-auto p-4 sm:p-8 space-y-4 sm:space-y-5">
               {formError && (
                 <div className="p-3.5 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />

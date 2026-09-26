@@ -15,6 +15,7 @@ import {
   Loader2,
   FileText,
   X,
+  Clock,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -27,6 +28,7 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [loadingConv, setLoadingConv] = useState(false);
   const [selectedCitation, setSelectedCitation] = useState<ICitation | null>(null);
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -238,8 +240,26 @@ export default function ChatPage() {
 
       {/* Main Chat Thread */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Mobile Chat Top Bar */}
+        <div className="md:hidden flex items-center justify-between px-4 py-2 border-b border-zinc-200/80 bg-white/70 backdrop-blur-md text-xs shrink-0">
+          <button
+            onClick={() => setMobileHistoryOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 text-zinc-700 font-semibold hover:bg-zinc-200 transition"
+          >
+            <Clock className="w-3.5 h-3.5 text-[#ff5c00]" />
+            <span>History ({conversations.length})</span>
+          </button>
+          <button
+            onClick={startNewConversation}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-50 text-[#ff5c00] font-semibold hover:bg-orange-100 transition"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Chat</span>
+          </button>
+        </div>
+
         {/* Messages Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 space-y-6">
           {loadingConv ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 text-[#ff5c00] animate-spin" />
@@ -411,6 +431,69 @@ export default function ChatPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Conversations Drawer Sheet */}
+      {mobileHistoryOpen && (
+        <div
+          onClick={() => setMobileHistoryOpen(false)}
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm md:hidden animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-0 inset-x-0 max-h-[75vh] bg-white rounded-t-3xl shadow-2xl p-5 flex flex-col animate-in slide-in-from-bottom duration-200"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <span className="font-bold text-sm text-zinc-900">Conversations</span>
+              <button
+                onClick={() => setMobileHistoryOpen(false)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-900 rounded-full hover:bg-zinc-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 py-3 space-y-1">
+              {conversations.length === 0 ? (
+                <div className="p-6 text-center text-xs text-zinc-400">No conversations yet</div>
+              ) : (
+                conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    onClick={() => {
+                      selectConversation(conv.id);
+                      setMobileHistoryOpen(false);
+                    }}
+                    className={`flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs ${
+                      currentConvId === conv.id
+                        ? 'bg-orange-50 text-[#ff5c00] font-semibold shadow-xs'
+                        : 'text-zinc-600 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <span className="truncate pr-2">{conv.title}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteConversation(e, conv.id);
+                      }}
+                      className="p-1 text-zinc-400 hover:text-red-500 rounded"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            <button
+              onClick={() => {
+                startNewConversation();
+                setMobileHistoryOpen(false);
+              }}
+              className="mt-3 w-full py-3 rounded-full bg-[#ff5c00] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md shadow-orange-500/20"
+            >
+              <Plus className="w-4 h-4" /> Start New Chat
+            </button>
           </div>
         </div>
       )}
