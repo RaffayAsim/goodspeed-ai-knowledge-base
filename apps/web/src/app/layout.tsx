@@ -1,10 +1,18 @@
 import type { Metadata } from 'next';
+import { Outfit } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '../context/auth-context';
 
+const outfit = Outfit({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-outfit',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'AI Knowledge Base | RAG & Swappable Intelligence',
-  description: 'Enterprise AI Knowledge Base with Document RAG and swappable OpenAI/Groq/Ollama models.',
+  title: 'KnowledgeBase AI — Think Different with Context-Aware Intelligence',
+  description: 'Enterprise AI Knowledge Base with Document RAG, vector retrieval, and swappable AI providers.',
 };
 
 export default function RootLayout({
@@ -13,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#090d16] text-slate-100 antialiased">
+    <html lang="en" className={outfit.variable}>
+      <body className="min-h-screen bg-[#fbfbfd] text-[#1d1d1f] font-sans antialiased selection:bg-orange-500 selection:text-white">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

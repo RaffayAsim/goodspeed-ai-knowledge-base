@@ -38,16 +38,14 @@ export default function DashboardLayout({
     if (user) {
       chatApi.getProviderInfo()
         .then(setProviderInfo)
-        .catch(() => {
-          // Fallback or silent fail if api is offline during setup
-        });
+        .catch(() => {});
     }
   }, [user]);
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#090d16]">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#fbfbfd]">
+        <Loader2 className="w-8 h-8 text-[#ff5c00] animate-spin" />
       </div>
     );
   }
@@ -58,24 +56,24 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#090d16]">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-slate-800/80 bg-slate-950/60 backdrop-blur-xl flex flex-col justify-between shrink-0">
+    <div className="flex h-screen overflow-hidden bg-[#fbfbfd] text-[#1d1d1f]">
+      {/* Apple-Style Sleek Frosted Sidebar */}
+      <aside className="w-64 border-r border-zinc-200/80 bg-white/70 backdrop-blur-2xl flex flex-col justify-between shrink-0 shadow-xs">
         <div>
-          {/* Logo */}
-          <div className="p-5 border-b border-slate-800/80">
-            <Link href="/chat" className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md shadow-blue-500/20">
+          {/* Logo Brand Header */}
+          <div className="p-6 border-b border-zinc-100">
+            <Link href="/chat" className="flex items-center space-x-2.5 group">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-400 flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform duration-300">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-white text-base tracking-tight">
-                Knowledge<span className="text-blue-500">Base</span>
+              <span className="font-bold text-[#1d1d1f] text-base tracking-tight">
+                Knowledge<span className="text-[#ff5c00]">Base</span>
               </span>
             </Link>
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-3 space-y-1">
+          <nav className="p-4 space-y-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname.startsWith(item.href);
@@ -83,17 +81,17 @@ export default function DashboardLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
+                  className={`flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-200 ${
                     isActive
-                      ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                      ? 'bg-orange-50 text-[#ff5c00] shadow-xs'
+                      : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/70'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="w-4 h-4" />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-[#ff5c00]' : 'text-zinc-400'}`} />
                     <span>{item.label}</span>
                   </div>
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 text-blue-400" />}
+                  {isActive && <ChevronRight className="w-4 h-4 text-[#ff5c00]" />}
                 </Link>
               );
             })}
@@ -101,33 +99,33 @@ export default function DashboardLayout({
         </div>
 
         {/* Footer Area: Active Model Badge & User Profile */}
-        <div className="p-3 border-t border-slate-800/80 space-y-3">
-          {/* Swappable Provider Badge */}
+        <div className="p-4 border-t border-zinc-100 space-y-3">
+          {/* Swappable Provider Pill Badge */}
           {providerInfo && (
-            <div className="px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="px-3.5 py-2.5 rounded-2xl bg-zinc-50 border border-zinc-200/80 flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded-full bg-[#ff5c00] animate-pulse" />
               <div className="overflow-hidden">
-                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1">
-                  <Cpu className="w-3 h-3 text-emerald-400" />
+                <div className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1">
+                  <Cpu className="w-3 h-3 text-[#ff5c00]" />
                   {providerInfo.provider} active
                 </div>
-                <div className="text-xs font-mono text-slate-200 truncate">
+                <div className="text-xs font-mono text-zinc-800 font-medium truncate">
                   {providerInfo.chatModel}
                 </div>
               </div>
             </div>
           )}
 
-          {/* User & Sign Out */}
+          {/* User Capsule & Sign Out */}
           <div className="flex items-center justify-between px-2 pt-1">
             <div className="overflow-hidden pr-2">
-              <div className="text-xs font-medium text-white truncate">{user.email}</div>
-              <div className="text-[10px] text-slate-400">Authenticated</div>
+              <div className="text-xs font-semibold text-zinc-900 truncate">{user.email}</div>
+              <div className="text-[10px] text-zinc-400 font-medium">Active Session</div>
             </div>
             <button
               onClick={() => signOut()}
               title="Sign Out"
-              className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+              className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -135,8 +133,8 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950/20">
+      {/* Main Content Viewport */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#fbfbfd]">
         {children}
       </main>
     </div>

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/auth-context';
 import Link from 'next/link';
-import { Database, Sparkles, Shield, Cpu, ArrowRight } from 'lucide-react';
+import { Sparkles, ArrowRight, Database, Cpu, Shield, Layers, FileText, Zap } from 'lucide-react';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -17,99 +17,133 @@ export default function HomePage() {
   }, [user, loading, router]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#090d16] via-[#0d1424] to-[#090d16]">
-      {/* Top Navigation */}
-      <header className="border-b border-slate-800/80 backdrop-blur-md px-6 py-4 flex items-center justify-between max-w-7xl mx-auto w-full">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Sparkles className="w-5 h-5 text-white" />
+    <div className="min-h-screen flex flex-col bg-[#fbfbfd] text-[#1d1d1f]">
+      {/* Floating Apple-Style Frosted Top Navigation */}
+      <header className="sticky top-4 z-40 max-w-5xl mx-auto w-[92%] sm:w-full mt-4">
+        <div className="apple-glass rounded-full px-6 py-3 flex items-center justify-between shadow-sm">
+          <Link href="/" className="flex items-center space-x-2.5 group">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-400 flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform duration-300">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-base tracking-tight text-[#1d1d1f]">
+              Knowledge<span className="text-[#ff5c00]">Base</span>
+            </span>
+          </Link>
+
+          <div className="flex items-center space-x-3">
+            <Link
+              href="/login"
+              className="text-xs sm:text-sm font-medium text-zinc-600 hover:text-zinc-950 px-3 py-1.5 transition"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/login?tab=register"
+              className="px-4 py-2 text-xs sm:text-sm font-semibold rounded-full bg-[#ff5c00] hover:bg-[#ea5500] text-white shadow-md shadow-orange-500/20 transition-all duration-300 flex items-center gap-1.5 hover:shadow-lg hover:shadow-orange-500/30"
+            >
+              Get Started <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-          <span className="font-bold text-lg text-white tracking-tight">
-            Knowledge<span className="text-blue-500">Base</span> AI
-          </span>
-        </div>
-        <div className="flex items-center space-x-4">
-          <Link
-            href="/login"
-            className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/login?tab=register"
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition flex items-center gap-1.5"
-          >
-            Get Started <ArrowRight className="w-4 h-4" />
-          </Link>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-5xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-semibold tracking-wide uppercase mb-8">
-          <Sparkles className="w-3.5 h-3.5" /> Next-Gen RAG Architecture
+      <main className="flex-1 flex flex-col items-center justify-center text-center px-4 pt-16 pb-20 max-w-5xl mx-auto">
+        {/* Pill Tag */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-orange-200/80 bg-orange-50 text-[#ff5c00] text-xs font-semibold tracking-wide mb-8 shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-[#ff5c00] animate-pulse" />
+          RAG Vector Engine &bull; Swappable AI
         </div>
 
-        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
-          Supercharge Your Knowledge with{' '}
-          <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-            Context-Aware AI
+        {/* Apple Big Headline */}
+        <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#1d1d1f] mb-6 max-w-4xl leading-[1.08]">
+          Knowledge Base.{' '}
+          <span className="bg-gradient-to-r from-[#ff5c00] via-[#ff782d] to-amber-500 bg-clip-text text-transparent">
+            Reimagined.
           </span>
         </h1>
 
-        <p className="text-lg md:text-xl text-slate-400 max-w-3xl mb-10 leading-relaxed">
-          Store, chunk, and embed your documents with Supabase pgvector. Ask questions in real-time
-          with guaranteed citations and swappable AI providers (OpenAI, Groq, or Ollama).
+        <p className="text-lg md:text-xl text-zinc-500 max-w-2xl mb-10 font-normal leading-relaxed">
+          Upload any document format. Retrieve facts with sub-millisecond pgvector precision. 
+          Query your intelligence with guaranteed citations and swappable models.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 mb-16">
+        {/* Hero Actions */}
+        <div className="flex flex-col sm:flex-row items-center gap-3.5 mb-20 w-full sm:w-auto">
           <Link
             href="/login?tab=register"
-            className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-xl shadow-blue-600/30 transition flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#ff5c00] hover:bg-[#ea5500] text-white font-semibold text-base shadow-xl shadow-orange-500/25 transition-all duration-300 flex items-center justify-center gap-2 hover:scale-[1.02]"
           >
             Launch Knowledge Base <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
             href="/login"
-            className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-slate-700 bg-slate-800/40 hover:bg-slate-800 text-slate-300 font-semibold transition"
+            className="w-full sm:w-auto px-8 py-4 rounded-full border border-zinc-200 bg-white/80 hover:bg-white text-zinc-800 font-semibold text-base shadow-xs hover:border-zinc-300 transition"
           >
             Sign In to Account
           </Link>
         </div>
 
-        {/* Feature Badges */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left w-full mt-6">
-          <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
-              <Database className="w-5 h-5" />
+        {/* Apple Bento Grid Showcase */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left w-full">
+          {/* Card 1 */}
+          <div className="apple-glass-card rounded-3xl p-8 hover:shadow-xl transition-all duration-300 group">
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-200/60 flex items-center justify-center text-[#ff5c00] mb-6 group-hover:scale-110 transition-transform">
+              <Database className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">pgvector Search</h3>
-            <p className="text-sm text-slate-400">
-              Recursive Markdown chunking with HNSW cosine similarity search on PostgreSQL.
+            <h3 className="text-xl font-bold text-zinc-900 mb-2 tracking-tight">pgvector Search</h3>
+            <p className="text-sm text-zinc-500 leading-relaxed">
+              Recursive Markdown chunking with HNSW cosine similarity search on PostgreSQL. Retrieves relevant chunks with zero hallucination.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
-              <Cpu className="w-5 h-5" />
+          {/* Card 2 */}
+          <div className="apple-glass-card rounded-3xl p-8 hover:shadow-xl transition-all duration-300 group">
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-200/60 flex items-center justify-center text-[#ff5c00] mb-6 group-hover:scale-110 transition-transform">
+              <Cpu className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Swappable AI</h3>
-            <p className="text-sm text-slate-400">
-              Provider-agnostic interface supporting OpenAI, Groq, Together, OpenRouter, and Ollama.
+            <h3 className="text-xl font-bold text-zinc-900 mb-2 tracking-tight">Swappable AI</h3>
+            <p className="text-sm text-zinc-500 leading-relaxed">
+              Provider-agnostic strategy pattern. Swap between Google Gemini, OpenAI, Groq, Together, and local Ollama without touching code.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4">
-              <Shield className="w-5 h-5" />
+          {/* Card 3 */}
+          <div className="apple-glass-card rounded-3xl p-8 hover:shadow-xl transition-all duration-300 group">
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-200/60 flex items-center justify-center text-[#ff5c00] mb-6 group-hover:scale-110 transition-transform">
+              <FileText className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Strict Tenant Isolation</h3>
-            <p className="text-sm text-slate-400">
-              Row Level Security (RLS) ensures users can only access their own documents & chats.
+            <h3 className="text-xl font-bold text-zinc-900 mb-2 tracking-tight">Universal Documents</h3>
+            <p className="text-sm text-zinc-500 leading-relaxed">
+              Direct text extraction for PDF, Microsoft Word, CSV, JSON, Markdown, and plain text. Ingests any format instantly.
             </p>
           </div>
         </div>
+
+        {/* Feature Highlights Row */}
+        <div className="mt-12 p-8 apple-glass-card rounded-3xl w-full flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4 text-left">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center text-white shrink-0">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-bold text-zinc-900 text-base">Real-Time Streaming & Citations</div>
+              <div className="text-xs text-zinc-500">Inspect exact source documents and similarity scores for every answer.</div>
+            </div>
+          </div>
+          <Link
+            href="/login?tab=register"
+            className="px-6 py-2.5 rounded-full bg-zinc-900 hover:bg-black text-white text-xs font-semibold transition shrink-0"
+          >
+            Try It Now
+          </Link>
+        </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-zinc-200/80 py-8 px-6 text-center text-xs text-zinc-400">
+        &copy; 2026 KnowledgeBase AI &bull; Built with Next.js, NestJS & Supabase pgvector
+      </footer>
     </div>
   );
 }

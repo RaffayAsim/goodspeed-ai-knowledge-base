@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { documentsApi } from '../../../lib/api-client';
-import { IDocument, CreateDocumentDto } from '@kb/types';
+import { IDocument } from '@kb/types';
 import {
   FileText,
   Plus,
@@ -16,6 +16,7 @@ import {
   Loader2,
   X,
   AlertCircle,
+  FileCheck,
 } from 'lucide-react';
 
 export default function DocumentsPage() {
@@ -142,17 +143,14 @@ export default function DocumentsPage() {
       setFormError(`File upload error: ${err.message || 'Could not parse document'}`);
     } finally {
       setIsExtracting(false);
-      // Reset input so re-selecting same file triggers onChange
       e.target.value = '';
     }
   };
 
-  // Extract all unique tags
   const allTags = Array.from(
     new Set(documents.flatMap((d) => d.tags || [])),
   );
 
-  // Filtered documents
   const filteredDocs = documents.filter((doc) => {
     const matchesSearch =
       doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -162,33 +160,33 @@ export default function DocumentsPage() {
   });
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden p-6 md:p-8">
+    <div className="flex-1 flex flex-col h-full overflow-hidden p-6 md:p-10">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Documents</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Manage your knowledge base documents. Embeddings and vector chunks update automatically.
+          <h1 className="text-3xl font-bold tracking-tight text-[#1d1d1f]">Documents</h1>
+          <p className="text-sm text-zinc-500 mt-1 font-normal">
+            Manage your knowledge library. Documents are chunked and embedded in real-time.
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm shadow-lg shadow-blue-600/30 transition shrink-0"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ff5c00] hover:bg-[#ea5500] text-white font-semibold text-sm shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-200 shrink-0"
         >
           <Plus className="w-4 h-4" /> Add Document
         </button>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row items-center gap-3 mb-8">
         <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+          <Search className="w-4 h-4 text-zinc-400 absolute left-4 top-3.5" />
           <input
             type="text"
-            placeholder="Search documents by title or text..."
+            placeholder="Search documents by title or content..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="w-full bg-white border border-zinc-200 rounded-full px-11 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#ff5c00] transition shadow-xs"
           />
         </div>
 
@@ -196,10 +194,10 @@ export default function DocumentsPage() {
           <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto py-1">
             <button
               onClick={() => setSelectedTag(null)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition shrink-0 ${
                 selectedTag === null
-                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'bg-white text-zinc-600 border border-zinc-200 hover:border-zinc-300'
               }`}
             >
               All Tags
@@ -208,10 +206,10 @@ export default function DocumentsPage() {
               <button
                 key={tag}
                 onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition shrink-0 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition shrink-0 ${
                   selectedTag === tag
-                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                    ? 'bg-orange-500 text-white shadow-xs'
+                    : 'bg-white text-zinc-600 border border-zinc-200 hover:border-zinc-300'
                 }`}
               >
                 #{tag}
@@ -225,49 +223,49 @@ export default function DocumentsPage() {
       <div className="flex-1 overflow-y-auto pr-1">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-[#ff5c00] animate-spin" />
           </div>
         ) : filteredDocs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-80 rounded-2xl border border-dashed border-slate-800 bg-slate-950/30 text-center p-6">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
-              <FileText className="w-6 h-6" />
+          <div className="flex flex-col items-center justify-center h-80 rounded-3xl border border-dashed border-zinc-200 bg-white/60 text-center p-8">
+            <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-200/80 flex items-center justify-center text-[#ff5c00] mb-4 shadow-xs">
+              <FileText className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-semibold text-white mb-1">No documents found</h3>
-            <p className="text-sm text-slate-400 max-w-sm mb-6">
+            <h3 className="text-base font-bold text-zinc-900 mb-1">No documents yet</h3>
+            <p className="text-sm text-zinc-500 max-w-sm mb-6">
               {searchQuery || selectedTag
                 ? 'Try adjusting your search criteria or clearing filters.'
-                : 'Upload or write your first document to populate your AI knowledge base.'}
+                : 'Upload any document (PDF, Word, CSV, JSON, Markdown, TXT) to start building your knowledge base.'}
             </p>
             <button
               onClick={openCreateModal}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-md transition"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ff5c00] hover:bg-[#ea5500] text-white font-semibold text-xs shadow-md transition"
             >
               <Plus className="w-4 h-4" /> Create Document
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredDocs.map((doc) => (
               <div
                 key={doc.id}
-                className="group flex flex-col justify-between rounded-2xl border border-slate-800/80 bg-slate-900/40 hover:bg-slate-900/80 hover:border-slate-700/80 p-5 transition backdrop-blur-sm"
+                className="group flex flex-col justify-between rounded-3xl apple-glass-card hover:shadow-xl hover:border-orange-200 p-6 transition-all duration-300"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="font-semibold text-white text-base line-clamp-1 group-hover:text-blue-400 transition">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <h3 className="font-bold text-zinc-900 text-base line-clamp-1 group-hover:text-[#ff5c00] transition">
                       {doc.title}
                     </h3>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                       <button
                         onClick={() => openEditModal(doc)}
-                        className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
+                        className="p-1.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition"
                         title="Edit Document"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(doc.id, doc.title)}
-                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                        className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                         title="Delete Document"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -275,18 +273,18 @@ export default function DocumentsPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-400 line-clamp-3 mb-4 leading-relaxed">
+                  <p className="text-xs text-zinc-500 line-clamp-3 mb-5 leading-relaxed font-normal">
                     {doc.content}
                   </p>
                 </div>
 
-                <div className="space-y-3 pt-3 border-t border-slate-800/60">
+                <div className="space-y-3.5 pt-3.5 border-t border-zinc-100">
                   {doc.tags && doc.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {doc.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="px-2 py-0.5 rounded-md bg-slate-800/80 text-[11px] text-slate-300 font-mono"
+                          className="px-2.5 py-0.5 rounded-full bg-orange-50 text-[11px] text-[#ff5c00] font-medium border border-orange-200/50"
                         >
                           #{tag}
                         </span>
@@ -294,10 +292,10 @@ export default function DocumentsPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Layers className="w-3 h-3 text-blue-400" />
-                      {doc.chunkCount ?? 0} vector {doc.chunkCount === 1 ? 'chunk' : 'chunks'}
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400 font-medium">
+                    <span className="flex items-center gap-1 text-zinc-600">
+                      <Layers className="w-3 h-3 text-[#ff5c00]" />
+                      {doc.chunkCount ?? 0} {doc.chunkCount === 1 ? 'vector chunk' : 'vector chunks'}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -311,53 +309,56 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      {/* Create / Edit Document Modal */}
+      {/* Apple-Style Document Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-2xl bg-white border border-zinc-200/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">
-                {editingDoc ? 'Edit Document' : 'New Document'}
-              </h2>
+            <div className="px-8 py-5 border-b border-zinc-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-900">
+                  {editingDoc ? 'Edit Document' : 'Add New Document'}
+                </h2>
+                <p className="text-xs text-zinc-400">Embeddings update automatically upon save.</p>
+              </div>
               <button
                 onClick={closeModal}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg transition"
+                className="p-2 text-zinc-400 hover:text-zinc-900 rounded-full hover:bg-zinc-100 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSave} className="flex-1 flex flex-col overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleSave} className="flex-1 flex flex-col overflow-y-auto p-8 space-y-5">
               {formError && (
-                <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs flex items-center gap-2">
+                <div className="p-3.5 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{formError}</span>
+                  <span className="font-medium">{formError}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">
                   Document Title
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Q4 Strategy & Roadmap"
+                  placeholder="e.g. Q4 Strategy, Customer Handbook, API Specs"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#ff5c00] transition shadow-2xs"
                 />
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wider">
                     Content (Markdown Supported)
                   </label>
-                  {/* Universal File extraction input */}
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/20 transition">
+                  {/* Universal File Dropzone Button */}
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 hover:bg-orange-100/80 text-xs font-semibold text-[#ff5c00] border border-orange-200/80 transition shadow-2xs">
                     {isExtracting ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -380,48 +381,48 @@ export default function DocumentsPage() {
                 </div>
                 <textarea
                   required
-                  rows={10}
-                  placeholder="Paste or write your document content here (plain text or markdown)..."
+                  rows={9}
+                  placeholder="Write or paste your document content here (plain text or markdown)..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-y"
+                  className="w-full bg-zinc-50/50 border border-zinc-200 rounded-2xl p-4 text-sm text-zinc-900 placeholder-zinc-400 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#ff5c00] focus:bg-white transition resize-y"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">
                   Tags (Comma separated)
                 </label>
                 <div className="relative">
-                  <Tag className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <Tag className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
                   <input
                     type="text"
-                    placeholder="e.g. roadmap, product, q4"
+                    placeholder="e.g. roadmap, product, engineering"
                     value={tagsInput}
                     onChange={(e) => setTagsInput(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-10 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#ff5c00] transition shadow-2xs"
                   />
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-zinc-100 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white text-sm font-medium transition"
+                  className="px-5 py-2.5 rounded-full border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 text-xs font-semibold transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium shadow-lg shadow-blue-600/30 transition flex items-center gap-2"
+                  disabled={saving || isExtracting}
+                  className="px-6 py-2.5 rounded-full bg-[#ff5c00] hover:bg-[#ea5500] disabled:opacity-50 text-white text-xs font-semibold shadow-md shadow-orange-500/25 transition-all duration-200 flex items-center gap-2"
                 >
                   {saving ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Chunking & Embedding...</span>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Chunking & Indexing...</span>
                     </>
                   ) : (
                     <span>{editingDoc ? 'Save Changes' : 'Create & Index'}</span>
