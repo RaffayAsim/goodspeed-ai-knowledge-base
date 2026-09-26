@@ -1,4 +1,4 @@
-export type AiProviderType = 'openai' | 'groq' | 'together' | 'openrouter' | 'ollama' | 'custom';
+export type AiProviderType = 'openai' | 'groq' | 'together' | 'openrouter' | 'ollama' | 'gemini' | 'custom';
 
 export interface AiProviderConfig {
   type: AiProviderType;

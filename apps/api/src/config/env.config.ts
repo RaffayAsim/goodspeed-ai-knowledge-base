@@ -10,7 +10,7 @@ export const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   
   // Swappable AI Provider Configuration
-  AI_PROVIDER_TYPE: z.enum(['openai', 'groq', 'together', 'openrouter', 'ollama', 'custom']).default('openai'),
+  AI_PROVIDER_TYPE: z.enum(['openai', 'groq', 'together', 'openrouter', 'ollama', 'custom', 'gemini']).default('openai'),
   
   // Chat Completion Configuration
   AI_CHAT_BASE_URL: z.string().default('https://api.openai.com/v1'),
