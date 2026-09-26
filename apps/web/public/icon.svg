@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="appleOrangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7a1a"/>
+      <stop offset="50%" stop-color="#ff5c00"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#ea580c" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <rect width="128" height="128" rx="28" fill="url(#appleOrangeGrad)" filter="url(#subtleShadow)"/>
+  <rect x="1" y="1" width="126" height="126" rx="27" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+  <path d="M64 24 C64 46, 46 64, 24 64 C46 64, 64 82, 64 104 C64 82, 82 64, 104 64 C82 64, 64 46, 64 24 Z" fill="#ffffff"/>
+  <circle cx="94" cy="34" r="5" fill="#ffffff" opacity="0.9"/>
+</svg>

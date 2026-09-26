@@ -13,6 +13,11 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: 'KnowledgeBase AI — Think Different with Context-Aware Intelligence',
   description: 'Enterprise AI Knowledge Base with Document RAG, vector retrieval, and swappable AI providers.',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

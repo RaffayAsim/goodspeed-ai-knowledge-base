@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../context/auth-context';
 import { Sparkles, Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -8,17 +8,43 @@ import Link from 'next/link';
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'register' ? 'register' : 'login';
+  const tabParam = searchParams.get('tab');
 
-  const [mode, setMode] = useState<'login' | 'register'>(initialTab);
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const router = useRouter();
+
+  // Initialize mode from URL parameter if present
+  useEffect(() => {
+    if (tabParam === 'register') {
+      setMode('register');
+    } else {
+      setMode('login');
+    }
+  }, [tabParam]);
+
+  // If already logged in, redirect to chat immediately
+  useEffect(() => {
+    if (user) {
+      window.location.href = '/chat';
+    }
+  }, [user]);
+
+  const switchMode = (newMode: 'login' | 'register') => {
+    setMode(newMode);
+    setError(null);
+    setSuccessMsg(null);
+    if (typeof window !== 'undefined') {
+      const newUrl = newMode === 'register' ? '/login?tab=register' : '/login';
+      window.history.replaceState(null, '', newUrl);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,24 +54,31 @@ function LoginForm() {
 
     try {
       if (mode === 'login') {
-        const { error: signInErr } = await signIn(email, password);
+        const { error: signInErr } = await signIn(email.trim(), password);
         if (signInErr) {
           setError(signInErr.message);
+          setLoading(false);
         } else {
-          router.push('/chat');
+          // Hard transition directly into dashboard
+          window.location.href = '/chat';
         }
       } else {
-        const { error: signUpErr } = await signUp(email, password);
+        const { error: signUpErr } = await signUp(email.trim(), password);
         if (signUpErr) {
           setError(signUpErr.message);
+          setLoading(false);
         } else {
-          setSuccessMsg('Account created successfully! Check your email or sign in.');
+          // Account registered
+          setSuccessMsg('Account registered successfully! You can now sign in.');
           setMode('login');
+          setLoading(false);
+          if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', '/login');
+          }
         }
       }
     } catch (err: any) {
       setError(err?.message || 'Authentication error occurred');
-    } finally {
       setLoading(false);
     }
   };
@@ -63,25 +96,22 @@ function LoginForm() {
           </span>
         </Link>
         <h2 className="text-2xl font-bold tracking-tight text-[#1d1d1f]">
-          {mode === 'login' ? 'Welcome back.' : 'Create your account.'}
+          {mode === 'login' ? 'Sign in to your account.' : 'Create your account.'}
         </h2>
         <p className="text-sm text-zinc-500 mt-1 font-normal">
           {mode === 'login'
-            ? 'Sign in to access your documents and chat with AI.'
+            ? 'Enter your email and password to access your documents.'
             : 'Get started with context-aware document intelligence.'}
         </p>
       </div>
 
       {/* Auth Card */}
       <div className="apple-glass-card rounded-3xl p-8 shadow-xl shadow-zinc-200/50">
-        {/* Apple Style Segmented Control */}
+        {/* Apple Style Segmented Tab Control */}
         <div className="flex rounded-full bg-zinc-100 p-1 mb-6 border border-zinc-200/60">
           <button
             type="button"
-            onClick={() => {
-              setMode('login');
-              setError(null);
-            }}
+            onClick={() => switchMode('login')}
             className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all duration-200 ${
               mode === 'login'
                 ? 'bg-white text-zinc-950 shadow-sm'
@@ -92,10 +122,7 @@ function LoginForm() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setMode('register');
-              setError(null);
-            }}
+            onClick={() => switchMode('register')}
             className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all duration-200 ${
               mode === 'register'
                 ? 'bg-white text-zinc-950 shadow-sm'
