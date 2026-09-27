@@ -54,56 +54,89 @@ export class OpenAiCompatibleProvider implements IAiProvider {
     );
   }
 
-  async generateChatCompletion(options: GenerateChatOptions): Promise<ChatCompletionResult> {
-    try {
-      const response = await this.chatClient.chat.completions.create({
-        model: this.chatModel,
-        messages: options.messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-        temperature: options.temperature ?? this.chatTemperature,
-        max_tokens: options.maxTokens ?? this.chatMaxTokens,
-      });
+  private getCandidateModels(): string[] {
+    return [
+      this.chatModel,
+      'gemini-flash-latest',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+  }
 
-      const choice = response.choices[0];
-      return {
-        content: choice?.message?.content ?? '',
-        model: response.model,
-        usage: {
-          promptTokens: response.usage?.prompt_tokens ?? 0,
-          completionTokens: response.usage?.completion_tokens ?? 0,
-          totalTokens: response.usage?.total_tokens ?? 0,
-        },
-      };
-    } catch (error: any) {
-      this.logger.error(`Error in generateChatCompletion: ${error.message}`, error.stack);
-      throw error;
+  async generateChatCompletion(options: GenerateChatOptions): Promise<ChatCompletionResult> {
+    const candidates = this.getCandidateModels();
+    let response: any = null;
+    let lastError: any = null;
+
+    for (const modelToUse of candidates) {
+      try {
+        response = await this.chatClient.chat.completions.create({
+          model: modelToUse,
+          messages: options.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          temperature: options.temperature ?? this.chatTemperature,
+          max_tokens: options.maxTokens ?? this.chatMaxTokens,
+        });
+        if (response) break;
+      } catch (err: any) {
+        lastError = err;
+        this.logger.warn(`Model ${modelToUse} failed (${err.status || err.message}), trying next candidate...`);
+      }
     }
+
+    if (!response) {
+      this.logger.error(`All models failed: ${lastError?.message}`);
+      throw lastError || new Error('All models failed');
+    }
+
+    const choice = response.choices[0];
+    return {
+      content: choice?.message?.content ?? '',
+      model: response.model,
+      usage: {
+        promptTokens: response.usage?.prompt_tokens ?? 0,
+        completionTokens: response.usage?.completion_tokens ?? 0,
+        totalTokens: response.usage?.total_tokens ?? 0,
+      },
+    };
   }
 
   async *streamChatCompletion(options: GenerateChatOptions): AsyncIterable<string> {
-    try {
-      const stream = await this.chatClient.chat.completions.create({
-        model: this.chatModel,
-        messages: options.messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-        temperature: options.temperature ?? this.chatTemperature,
-        max_tokens: options.maxTokens ?? this.chatMaxTokens,
-        stream: true,
-      });
+    const candidates = this.getCandidateModels();
+    let stream: any = null;
+    let lastError: any = null;
 
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content;
-        if (delta) {
-          yield delta;
-        }
+    for (const modelToUse of candidates) {
+      try {
+        stream = await this.chatClient.chat.completions.create({
+          model: modelToUse,
+          messages: options.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          temperature: options.temperature ?? this.chatTemperature,
+          max_tokens: options.maxTokens ?? this.chatMaxTokens,
+          stream: true,
+        });
+        if (stream) break;
+      } catch (err: any) {
+        lastError = err;
+        this.logger.warn(`Stream model ${modelToUse} failed (${err.status || err.message}), trying next candidate...`);
       }
-    } catch (error: any) {
-      this.logger.error(`Error in streamChatCompletion: ${error.message}`, error.stack);
-      throw error;
+    }
+
+    if (!stream) {
+      this.logger.error(`Error in streamChatCompletion: ${lastError?.message}`);
+      throw lastError || new Error('Stream failed');
+    }
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content;
+      if (delta) {
+        yield delta;
+      }
     }
   }
 

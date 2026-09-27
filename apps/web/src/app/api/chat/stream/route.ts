@@ -157,14 +157,39 @@ ${contextString || 'No matching document excerpts were found for this query.'}`;
 
       let fullContent = '';
 
-      try {
-        const stream = await chatClient.chat.completions.create({
-          model: chatModel,
-          messages: promptMessages,
-          stream: true,
-          temperature: 0.3,
-          max_tokens: 1500,
-        });
+        const candidateModels = [
+          chatModel,
+          'gemini-flash-latest',
+          'gemini-3.7-flash',
+          'gemini-3.6-flash',
+        ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+
+        let stream: any = null;
+        let lastError: any = null;
+
+        for (const candidate of candidateModels) {
+          for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+              stream = await chatClient.chat.completions.create({
+                model: candidate,
+                messages: promptMessages,
+                stream: true,
+                temperature: 0.3,
+                max_tokens: 1500,
+              });
+              if (stream) break;
+            } catch (err: any) {
+              lastError = err;
+              console.warn(`Model ${candidate} attempt ${attempt} failed (${err.status || err.message})`);
+              await new Promise((r) => setTimeout(r, 400));
+            }
+          }
+          if (stream) break;
+        }
+
+        if (!stream) {
+          throw lastError || new Error('AI service is temporarily busy. Please retry your question.');
+        }
 
         for await (const chunk of stream) {
           const delta = chunk.choices[0]?.delta?.content;

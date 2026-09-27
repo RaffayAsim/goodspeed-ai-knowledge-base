@@ -219,6 +219,11 @@ export default function ChatPage() {
           onError: (errMsg) => {
             setIsStreaming(false);
             setStreamingMessageId(null);
+            const userFriendlyMsg =
+              errMsg.includes('503') || errMsg.includes('Service Unavailable') || errMsg.includes('busy')
+                ? 'The AI service experienced a momentary high-traffic spike. Please click send again to retry.'
+                : `*(Error: ${errMsg})*`;
+
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === assistantMessageId
@@ -226,7 +231,7 @@ export default function ChatPage() {
                       ...msg,
                       content:
                         (msg.content ? msg.content + '\n\n' : '') +
-                        `*(Error: ${errMsg})*`,
+                        userFriendlyMsg,
                     }
                   : msg,
               ),

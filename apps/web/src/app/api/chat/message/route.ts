@@ -115,11 +115,37 @@ ${contextText}`;
       { role: 'user' as const, content: message },
     ];
 
-    const completion = await openai.chat.completions.create({
-      model: getChatModelName(),
-      messages: chatMessages,
-      temperature: 0.3,
-    });
+    const primaryModel = getChatModelName();
+    const candidateModels = [
+      primaryModel,
+      'gemini-flash-latest',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+
+    let completion: any = null;
+    let lastErr: any = null;
+
+    for (const candidate of candidateModels) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          completion = await openai.chat.completions.create({
+            model: candidate,
+            messages: chatMessages,
+            temperature: 0.3,
+          });
+          if (completion) break;
+        } catch (err: any) {
+          lastErr = err;
+          await new Promise((r) => setTimeout(r, 400));
+        }
+      }
+      if (completion) break;
+    }
+
+    if (!completion) {
+      throw lastErr || new Error('Failed to generate response');
+    }
 
     const replyContent = completion.choices[0]?.message?.content || 'No response generated.';
     const assistantTokCount = Math.ceil(replyContent.length / 4);

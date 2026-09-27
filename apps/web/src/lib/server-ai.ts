@@ -14,11 +14,15 @@ export function getAiClients() {
   const chatClient = new OpenAI({
     baseURL: chatBaseUrl,
     apiKey: chatApiKey,
+    maxRetries: 3,
+    timeout: 30000,
   });
 
   const embeddingClient = new OpenAI({
     baseURL: embeddingBaseUrl,
     apiKey: embeddingApiKey,
+    maxRetries: 3,
+    timeout: 30000,
   });
 
   return {
