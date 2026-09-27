@@ -90,6 +90,17 @@ export async function POST(req: NextRequest) {
           { status: 422 },
         );
       }
+    } else if (['doc', 'docx'].includes(extension)) {
+      try {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const mammoth = require('mammoth');
+        const result = await mammoth.extractRawText({ buffer });
+        content = result.value?.trim() || '';
+      } catch (docErr) {
+        console.warn('Word document parsing error:', docErr);
+        content = await file.text();
+      }
     } else {
       // Fallback text read
       content = await file.text();
