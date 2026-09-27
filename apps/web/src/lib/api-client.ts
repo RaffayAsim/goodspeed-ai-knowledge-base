@@ -1,7 +1,19 @@
 import { createClient } from './supabase';
 import { IDocument, IConversation, IMessage, ICitation, IUsageStats, CreateDocumentDto, UpdateDocumentDto } from '@kb/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  // In browser on deployed host (not localhost), localhost URLs will NEVER work due to ERR_CONNECTION_REFUSED
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+      return '/api';
+    }
+    return envUrl;
+  }
+
+  return envUrl || 'http://localhost:4000/api';
+}
 
 async function getAuthToken(): Promise<string | null> {
   const supabase = createClient();
@@ -14,6 +26,7 @@ export async function apiRequest<T = any>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = await getAuthToken();
+  const baseUrl = getApiBaseUrl();
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -21,7 +34,7 @@ export async function apiRequest<T = any>(
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers,
   });
@@ -63,7 +76,8 @@ export const documentsApi = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_BASE_URL}/documents/extract-file`, {
+    const baseUrl = getApiBaseUrl();
+    const response = await fetch(`${baseUrl}/documents/extract-file`, {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -121,7 +135,8 @@ export const chatApi = {
     },
   ) => {
     const token = await getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+    const baseUrl = getApiBaseUrl();
+    const response = await fetch(`${baseUrl}/chat/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
