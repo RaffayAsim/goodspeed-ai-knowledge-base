@@ -39,14 +39,20 @@ export class DocumentExtractorService {
                 await parser.destroy();
               }
             }
-          } else if (typeof pdfParseModule === 'function') {
-            const pdfData = await pdfParseModule(file.buffer);
-            content = pdfData.text?.trim() || '';
-          } else if (typeof pdfParseModule?.default === 'function') {
-            const pdfData = await pdfParseModule.default(file.buffer);
-            content = pdfData.text?.trim() || '';
-          } else {
-            throw new Error('PDF parsing library could not be initialized');
+          if (!content || content.length < 50) {
+            const str = file.buffer.toString('binary');
+            const matches: string[] = [];
+            const regex = /\/(?:E|ActualText|Alt)\s*\(([^)]+)\)/g;
+            let m;
+            while ((m = regex.exec(str)) !== null) {
+              const val = m[1].replace(/\\\(/g, '(').replace(/\\\)/g, ')').trim();
+              if (val.length > 0 && !matches.includes(val)) {
+                matches.push(val);
+              }
+            }
+            if (matches.length > 0) {
+              content = matches.join('\n\n');
+            }
           }
           break;
         }

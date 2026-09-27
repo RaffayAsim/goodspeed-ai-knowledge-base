@@ -49,11 +49,14 @@ export async function POST(req: NextRequest) {
     // 3. RAG Retrieval: embed query
     let chunks: any[] = [];
     try {
-      const queryEmbedding = await generateEmbedding(message);
+      let queryEmbedding = await generateEmbedding(message);
+      if (queryEmbedding && queryEmbedding.length > 1536) {
+        queryEmbedding = queryEmbedding.slice(0, 1536);
+      }
       const { data: rpcChunks, error: rpcError } = await supabase.rpc('match_document_chunks', {
         query_embedding: queryEmbedding,
         match_threshold: 0.2,
-        match_count: 4,
+        match_count: 5,
         p_user_id: user.id,
       });
 

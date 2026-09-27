@@ -1,5 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
+function extractCanvaOrStructuredPdf(buffer: Buffer): string {
+  const str = buffer.toString('binary');
+  const matches: string[] = [];
+  const regex = /\/(?:E|ActualText|Alt)\s*\(([^)]+)\)/g;
+  let m;
+  while ((m = regex.exec(str)) !== null) {
+    const rawMatch = m[1];
+    if (!rawMatch) continue;
+    const val = rawMatch.replace(/\\\(/g, '(').replace(/\\\)/g, ')').trim();
+    if (val.length > 0 && !matches.includes(val)) {
+      matches.push(val);
+    }
+  }
+
+  // Also check for standard Tj / TJ PDF text operators
+  if (matches.length < 5) {
+    const tjRegex = /\(([^)]+)\)\s*(?:Tj|'|")/g;
+    while ((m = tjRegex.exec(str)) !== null) {
+      const rawMatch = m[1];
+      if (!rawMatch) continue;
+      const val = rawMatch.replace(/\\\(/g, '(').replace(/\\\)/g, ')').trim();
+      if (val.length > 2 && !matches.includes(val) && !val.startsWith('/')) {
+        matches.push(val);
+      }
+    }
+  }
+
+  return matches.join('\n\n');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -18,8 +50,10 @@ export async function POST(req: NextRequest) {
     if (['txt', 'md', 'markdown', 'csv', 'json', 'html'].includes(extension)) {
       content = await file.text();
     } else if (extension === 'pdf') {
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      // Try 1: pdf-parse standard extractor
       try {
-        const buffer = Buffer.from(await file.arrayBuffer());
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const pdfParse = require('pdf-parse');
         if (pdfParse?.PDFParse) {
@@ -34,9 +68,27 @@ export async function POST(req: NextRequest) {
           const res = await pdfParse.default(buffer);
           content = res.text?.trim() || '';
         }
-      } catch (pdfErr: any) {
-        console.warn('PDF parsing error, falling back to text read:', pdfErr);
-        content = (await file.text()).replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+      } catch (pdfErr) {
+        console.warn('pdf-parse standard extraction failed, attempting structured fallback:', pdfErr);
+      }
+
+      // Try 2: If standard extraction yielded empty/near-empty text (e.g. Canva PDF designs), extract structured accessibility text
+      if (!content || content.length < 50) {
+        const structuredText = extractCanvaOrStructuredPdf(buffer);
+        if (structuredText && structuredText.length > 50) {
+          content = structuredText;
+        }
+      }
+
+      // Guard: Never allow raw binary postscript PDF bytes to be returned as content
+      if (content.startsWith('%PDF') || !content) {
+        return NextResponse.json(
+          {
+            message:
+              'Could not extract text automatically from this PDF (it may contain scanned image graphics). Please copy and paste the document text directly.',
+          },
+          { status: 422 },
+        );
       }
     } else {
       // Fallback text read

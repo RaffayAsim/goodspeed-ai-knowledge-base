@@ -69,37 +69,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2. Background / synchronous chunking and embedding
   try {
     const chunks = chunkText(content);
     if (chunks.length > 0) {
-      const { embeddingClient, embeddingModel, embeddingDimension } = getAiClients();
+      const { embeddingClient, embeddingModel } = getAiClients();
+      const BATCH_SIZE = 25;
+      const chunkRows: any[] = [];
 
-      const embRes = await embeddingClient.embeddings.create({
-        model: embeddingModel,
-        input: chunks,
-        dimensions: embeddingDimension,
-      } as any).catch(async () => {
-        return await embeddingClient.embeddings.create({
-          model: embeddingModel,
-          input: chunks,
-        });
-      });
-
-      const chunkRows = chunks.map((chunkStr, i) => {
-        let vec = embRes.data?.[i]?.embedding || [];
-        if (embeddingDimension && vec.length > embeddingDimension) {
-          vec = vec.slice(0, embeddingDimension);
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batch = chunks.slice(i, i + BATCH_SIZE);
+        let embRes: any;
+        try {
+          embRes = await embeddingClient.embeddings.create({
+            model: embeddingModel,
+            input: batch,
+          });
+        } catch (e: any) {
+          console.warn('Batch embedding error, retrying without batching:', e);
+          embRes = await embeddingClient.embeddings.create({
+            model: embeddingModel,
+            input: batch.join(' ').slice(0, 1000),
+          });
         }
-        return {
-          document_id: doc.id,
-          user_id: user.id,
-          chunk_index: i,
-          content: chunkStr,
-          embedding: vec,
-          token_count: Math.ceil(chunkStr.length / 4),
-        };
-      });
+
+        for (let j = 0; j < batch.length; j++) {
+          let vec = embRes.data?.[j]?.embedding || embRes.data?.[0]?.embedding || [];
+          if (vec.length > 1536) {
+            vec = vec.slice(0, 1536);
+          }
+          chunkRows.push({
+            document_id: doc.id,
+            user_id: user.id,
+            chunk_index: i + j,
+            content: batch[j] || '',
+            embedding: vec,
+            token_count: Math.ceil((batch[j]?.length || 0) / 4),
+          });
+        }
+      }
 
       await supabase.from('document_chunks').insert(chunkRows);
     }

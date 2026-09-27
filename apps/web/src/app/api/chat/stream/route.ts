@@ -57,27 +57,30 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    const queryVec = embRes?.data?.[0]?.embedding;
+    let queryVec = embRes?.data?.[0]?.embedding;
+    if (queryVec && queryVec.length > 1536) {
+      queryVec = queryVec.slice(0, 1536);
+    }
 
     if (queryVec) {
       const { data: matched } = await supabase.rpc('match_document_chunks', {
         query_embedding: queryVec,
         match_threshold: 0.2,
-        match_count: 4,
+        match_count: 5,
         p_user_id: user.id,
       });
 
       chunks = matched || [];
     }
 
-    // Fallback to recent chunks if similarity threshold yielded 0
+    // Fallback 1: recent chunks if similarity threshold yielded 0
     if (chunks.length === 0) {
       const { data: recent } = await supabase
         .from('document_chunks')
         .select('id, document_id, chunk_index, content, documents!inner(title)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(4);
+        .limit(5);
 
       if (recent && recent.length > 0) {
         chunks = recent.map((r: any) => ({
@@ -87,6 +90,27 @@ export async function POST(req: NextRequest) {
           chunk_index: r.chunk_index,
           content: r.content,
           similarity: 0.5,
+        }));
+      }
+    }
+
+    // Fallback 2: if chunks table has no chunks, retrieve directly from user's documents
+    if (chunks.length === 0) {
+      const { data: userDocs } = await supabase
+        .from('documents')
+        .select('id, title, content')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(2);
+
+      if (userDocs && userDocs.length > 0) {
+        chunks = userDocs.map((d: any) => ({
+          chunk_id: d.id,
+          document_id: d.id,
+          document_title: d.title,
+          chunk_index: 0,
+          content: (d.content || '').slice(0, 3000),
+          similarity: 0.85,
         }));
       }
     }

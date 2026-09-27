@@ -67,26 +67,40 @@ export async function PUT(
       await supabase.from('document_chunks').delete().eq('document_id', id);
       const chunks = chunkText(body.content);
       if (chunks.length > 0) {
-        const { embeddingClient, embeddingModel, embeddingDimension } = getAiClients();
-        const embRes = await embeddingClient.embeddings.create({
-          model: embeddingModel,
-          input: chunks,
-          dimensions: embeddingDimension,
-        } as any).catch(async () => {
-          return await embeddingClient.embeddings.create({
-            model: embeddingModel,
-            input: chunks,
-          });
-        });
+        const { embeddingClient, embeddingModel } = getAiClients();
+        const BATCH_SIZE = 25;
+        const chunkRows: any[] = [];
 
-        const chunkRows = chunks.map((chunkStr, i) => ({
-          document_id: id,
-          user_id: user.id,
-          chunk_index: i,
-          content: chunkStr,
-          embedding: embRes.data?.[i]?.embedding || [],
-          token_count: Math.ceil(chunkStr.length / 4),
-        }));
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+          const batch = chunks.slice(i, i + BATCH_SIZE);
+          let embRes: any;
+          try {
+            embRes = await embeddingClient.embeddings.create({
+              model: embeddingModel,
+              input: batch,
+            });
+          } catch (e: any) {
+            embRes = await embeddingClient.embeddings.create({
+              model: embeddingModel,
+              input: batch.join(' ').slice(0, 1000),
+            });
+          }
+
+          for (let j = 0; j < batch.length; j++) {
+            let vec = embRes.data?.[j]?.embedding || embRes.data?.[0]?.embedding || [];
+            if (vec.length > 1536) {
+              vec = vec.slice(0, 1536);
+            }
+            chunkRows.push({
+              document_id: id,
+              user_id: user.id,
+              chunk_index: i + j,
+              content: batch[j] || '',
+              embedding: vec,
+              token_count: Math.ceil((batch[j]?.length || 0) / 4),
+            });
+          }
+        }
 
         await supabase.from('document_chunks').insert(chunkRows);
       }
