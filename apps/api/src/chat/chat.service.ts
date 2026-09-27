@@ -134,10 +134,23 @@ export class ChatService {
     });
 
     // 3. RAG Retrieval: find relevant chunks
-    const searchResult = await this.vectorStoreService.searchSimilarChunks(userId, {
+    let searchResult = await this.vectorStoreService.searchSimilarChunks(userId, {
       query: dto.message,
       limit: 4,
+      similarityThreshold: 0.2,
     });
+
+    // If semantic similarity found 0 chunks, fetch recent chunks as context fallback
+    if (searchResult.chunks.length === 0) {
+      const fallbackChunks = await this.vectorStoreService.getRecentChunksForUser(userId, 4);
+      if (fallbackChunks.length > 0) {
+        searchResult = {
+          query: dto.message,
+          chunks: fallbackChunks,
+          totalRetrieved: fallbackChunks.length,
+        };
+      }
+    }
 
     const citations = this.extractCitations(searchResult.chunks);
 
@@ -230,10 +243,23 @@ export class ChatService {
       });
 
       // 3. RAG Retrieval
-      const searchResult = await this.vectorStoreService.searchSimilarChunks(userId, {
+      let searchResult = await this.vectorStoreService.searchSimilarChunks(userId, {
         query: dto.message,
         limit: 4,
+        similarityThreshold: 0.2,
       });
+
+      // If semantic similarity found 0 chunks, fetch recent chunks as context fallback
+      if (searchResult.chunks.length === 0) {
+        const fallbackChunks = await this.vectorStoreService.getRecentChunksForUser(userId, 4);
+        if (fallbackChunks.length > 0) {
+          searchResult = {
+            query: dto.message,
+            chunks: fallbackChunks,
+            totalRetrieved: fallbackChunks.length,
+          };
+        }
+      }
 
       const citations = this.extractCitations(searchResult.chunks);
 
@@ -334,29 +360,38 @@ export class ChatService {
     chunks: RetrievedChunk[],
     history: ChatMessage[],
   ): ChatMessage[] {
-    let contextBlock = 'No relevant documents found in knowledge base.';
+    let contextBlock = 'No documents currently found in user knowledge base.';
 
     if (chunks.length > 0) {
       contextBlock = chunks
         .map(
           (c, idx) =>
-            `[Source ${idx + 1}: "${c.documentTitle}" (Similarity: ${Math.round(c.similarity * 100)}%)]\n${c.content}`,
+            `[Document: "${c.documentTitle}" (Chunk ${c.chunkIndex + 1}, Relevance: ${Math.round(c.similarity * 100)}%)]\n${c.content}`,
         )
         .join('\n\n---\n\n');
     }
 
-    const systemPrompt = `You are a knowledgeable, accurate AI Knowledge Base Assistant.
-Your task is to answer the user's questions based primarily on the provided Document Context below.
+    const systemPrompt = `You are KnowledgeBase AI, an intelligent, precise assistant for the user's private knowledge base.
+You have access to excerpts from the user's uploaded documents (PDFs, Word docs, CSVs, notes, resumes, technical specs).
 
-Rules:
-1. Ground your answers firmly in the provided Context.
-2. If the answer is directly supported by the context, state it clearly and reference the source title.
-3. If the context does not contain enough information to answer the question, state honestly that the knowledge base doesn't have that information, but offer general helpful knowledge if applicable while clarifying it wasn't in the docs.
-4. Format your output with clean Markdown (headings, bullet points, code blocks where appropriate).
-
-=== DOCUMENT CONTEXT ===
+=== USER'S DOCUMENT CONTEXT ===
 ${contextBlock}
-========================`;
+===============================
+
+Core Response Instructions:
+1. **Document-Grounded Knowledge**: The documents in the context ARE the user's private files. If the user asks about a person (e.g. Raffay Asim), role, project, skill, metric, or detail that appears in the context, answer directly and accurately using these facts.
+2. **Direct & Tailored to the Specific Question**:
+   - Answer specifically what was requested.
+   - If the user asks for "key points", "summary", or "highlights", provide a concise, high-impact summary with structured bullet points (e.g. Top Skills, Key Roles, Notable Achievements).
+   - NEVER dump, copy-paste, or regurgitate entire documents or sections verbatim unless the user explicitly asks for full text quotes.
+   - If the user asks a specific question (e.g. "what is his experience with AI?", "what are his contact details?"), answer that exact question directly in 1-2 focused paragraphs or concise bullets.
+3. **Format & Tone**:
+   - Clean, professional Markdown. Bold important technologies, metrics, and key terms.
+   - Keep paragraphs brief and easy to scan.
+4. **Source Attribution**:
+   - Reference the document name naturally where helpful (e.g., "According to your uploaded document '${chunks[0]?.documentTitle || 'document'}'...").
+5. **If Truly Not Found**:
+   - Only say information is missing if the provided context genuinely contains no mention of the requested topic. If partially mentioned, provide what is available and clarify what is missing.`;
 
     return [
       { role: 'system', content: systemPrompt },

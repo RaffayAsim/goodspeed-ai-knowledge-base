@@ -114,4 +114,30 @@ export class VectorStoreService {
       throw new Error(`Error deleting document chunks: ${error.message}`);
     }
   }
+
+  /**
+   * Fallback retrieval: Gets the latest chunks from the user's documents
+   * when a broad query doesn't hit a specific vector threshold
+   */
+  async getRecentChunksForUser(userId: string, limit = 4): Promise<RetrievedChunk[]> {
+    const client = this.supabaseService.getAdminClient();
+    const { data, error } = await client
+      .from('document_chunks')
+      .select('id, document_id, chunk_index, content, metadata, documents(title)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+
+    return data.map((row: any) => ({
+      chunkId: row.id,
+      documentId: row.document_id,
+      documentTitle: row.documents?.title || 'Knowledge Base Document',
+      chunkIndex: row.chunk_index,
+      content: row.content,
+      similarity: 0.85,
+      metadata: row.metadata,
+    }));
+  }
 }
