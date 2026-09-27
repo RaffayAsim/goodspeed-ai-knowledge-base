@@ -157,6 +157,7 @@ ${contextString || 'No matching document excerpts were found for this query.'}`;
 
       let fullContent = '';
 
+      try {
         const candidateModels = [
           chatModel,
           'gemini-flash-latest',

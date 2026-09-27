@@ -1,6 +1,22 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
+  "globalEnv": [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_API_URL",
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "AI_PROVIDER_TYPE",
+    "AI_CHAT_BASE_URL",
+    "AI_CHAT_API_KEY",
+    "AI_CHAT_MODEL",
+    "AI_EMBEDDING_BASE_URL",
+    "AI_EMBEDDING_API_KEY",
+    "AI_EMBEDDING_MODEL",
+    "AI_EMBEDDING_DIMENSION"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
