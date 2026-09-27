@@ -6,7 +6,9 @@ Built for the **Goodspeed Software Developer Technical Assessment**.
 
 ---
 
-## 📽️ Loom Walkthrough Videos
+## 🌐 Live Application & Links
+- **Live Vercel Frontend:** [https://goodspeed-ai-knowledge-base.vercel.app](https://goodspeed-ai-knowledge-base.vercel.app)
+- **GitHub Repository:** [https://github.com/RaffayAsim/goodspeed-ai-knowledge-base](https://github.com/RaffayAsim/goodspeed-ai-knowledge-base)
 - **Application Walkthrough (<= 5 mins):** [Loom Link Here - App Walkthrough](https://loom.com/share/placeholder-app-demo)
 - **AI Acceleration Walkthrough:** [Loom Link Here - AI Workflow](https://loom.com/share/placeholder-ai-demo)
 
