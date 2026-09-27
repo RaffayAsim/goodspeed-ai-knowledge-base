@@ -11,4 +11,11 @@ export interface IAiProvider {
   streamChatCompletion(options: GenerateChatOptions): AsyncIterable<string>;
   generateEmbeddings(texts: string[]): Promise<number[][]>;
   generateSingleEmbedding(text: string): Promise<number[]>;
+  getProviderInfo?(): {
+    provider: string;
+    chatModel: string;
+    embeddingModel: string;
+    embeddingDimension: number;
+    baseUrl?: string;
+  };
 }

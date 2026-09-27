@@ -16,6 +16,10 @@ import {
   FileText,
   X,
   Clock,
+  Zap,
+  Copy,
+  Check,
+  CheckCheck,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -26,11 +30,26 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [loadingConv, setLoadingConv] = useState(false);
   const [selectedCitation, setSelectedCitation] = useState<ICitation | null>(null);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const [providerInfo, setProviderInfo] = useState<{
+    provider: string;
+    chatModel: string;
+    embeddingModel: string;
+    embeddingDimension: number;
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activeConvIdRef = useRef<string | null>(null);
+
+  // Keep ref in sync so SSE callbacks never have stale closures
+  useEffect(() => {
+    activeConvIdRef.current = currentConvId;
+  }, [currentConvId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,26 +59,42 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, isStreaming]);
 
-  const loadConversations = async () => {
+  // Initial load on mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const [list, info] = await Promise.all([
+          chatApi.listConversations().catch(() => [] as IConversation[]),
+          chatApi.getProviderInfo().catch(() => null),
+        ]);
+        setConversations(list);
+        if (info) setProviderInfo(info);
+        if (list.length > 0) {
+          selectConversation(list[0]!.id);
+        }
+      } catch (err) {
+        console.error('Failed to load initial conversations:', err);
+      }
+    };
+    init();
+  }, []);
+
+  // Background refresh of conversation titles without resetting active state
+  const refreshConversationsList = async () => {
     try {
       const list = await chatApi.listConversations();
       setConversations(list);
-      if (list.length > 0 && !currentConvId) {
-        selectConversation(list[0]!.id);
-      }
     } catch (err) {
-      console.error('Failed to load conversations:', err);
+      console.error('Failed to refresh conversation list:', err);
     }
   };
 
-  useEffect(() => {
-    loadConversations();
-  }, []);
-
   const selectConversation = async (id: string) => {
+    if (isStreaming) return; // Don't interrupt active streaming
     try {
       setLoadingConv(true);
       setCurrentConvId(id);
+      activeConvIdRef.current = id;
       const conv = await chatApi.getConversation(id);
       setMessages(conv.messages || []);
     } catch (err) {
@@ -70,7 +105,9 @@ export default function ChatPage() {
   };
 
   const startNewConversation = () => {
+    if (isStreaming) return;
     setCurrentConvId(null);
+    activeConvIdRef.current = null;
     setMessages([]);
     setInputMessage('');
     setSelectedCitation(null);
@@ -91,6 +128,12 @@ export default function ChatPage() {
     }
   };
 
+  const copyMessage = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const query = inputMessage.trim();
@@ -98,9 +141,12 @@ export default function ChatPage() {
 
     setInputMessage('');
 
+    const convIdAtSend = activeConvIdRef.current;
+
+    // 1. Immediately append user message to local state
     const userMessage: IMessage = {
       id: `user-${Date.now()}`,
-      conversationId: currentConvId || '',
+      conversationId: convIdAtSend || '',
       role: 'user',
       content: query,
       createdAt: new Date().toISOString(),
@@ -109,10 +155,13 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setIsStreaming(true);
 
+    // 2. Immediately append empty assistant message to show WhatsApp typing indicator
     const assistantMessageId = `assist-${Date.now()}`;
+    setStreamingMessageId(assistantMessageId);
+
     const initialAssistantMsg: IMessage = {
       id: assistantMessageId,
-      conversationId: currentConvId || '',
+      conversationId: convIdAtSend || '',
       role: 'assistant',
       content: '',
       citations: [],
@@ -124,14 +173,15 @@ export default function ChatPage() {
     try {
       await chatApi.streamMessage(
         {
-          conversationId: currentConvId ?? undefined,
+          conversationId: convIdAtSend ?? undefined,
           message: query,
         },
         {
           onCitations: (citations, convId) => {
-            if (!currentConvId && convId) {
+            if (convId && convId !== activeConvIdRef.current) {
               setCurrentConvId(convId);
-              loadConversations();
+              activeConvIdRef.current = convId;
+              refreshConversationsList();
             }
             setMessages((prev) =>
               prev.map((msg) =>
@@ -148,23 +198,35 @@ export default function ChatPage() {
               ),
             );
           },
-          onDone: ({ conversationId }) => {
+          onDone: ({ conversationId, tokenCount }) => {
             setIsStreaming(false);
-            if (conversationId && conversationId !== currentConvId) {
+            setStreamingMessageId(null);
+            if (conversationId && conversationId !== activeConvIdRef.current) {
               setCurrentConvId(conversationId);
-              loadConversations();
+              activeConvIdRef.current = conversationId;
+              refreshConversationsList();
+            }
+            if (tokenCount) {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMessageId
+                    ? { ...msg, tokenCount }
+                    : msg,
+                ),
+              );
             }
           },
           onError: (errMsg) => {
             setIsStreaming(false);
+            setStreamingMessageId(null);
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === assistantMessageId
                   ? {
                       ...msg,
                       content:
-                        msg.content +
-                        `\n\n*(Error while streaming: ${errMsg})*`,
+                        (msg.content ? msg.content + '\n\n' : '') +
+                        `*(Error: ${errMsg})*`,
                     }
                   : msg,
               ),
@@ -174,12 +236,13 @@ export default function ChatPage() {
       );
     } catch (err: any) {
       setIsStreaming(false);
+      setStreamingMessageId(null);
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMessageId
             ? {
                 ...msg,
-                content: `An error occurred: ${err.message || 'Failed to connect to API'}`,
+                content: `An unexpected connection error occurred: ${err.message}`,
               }
             : msg,
         ),
@@ -187,17 +250,31 @@ export default function ChatPage() {
     }
   };
 
+  // Calculate total tokens used across active conversation
+  const sessionTotalTokens = messages.reduce(
+    (sum, m) => sum + (m.tokenCount || 0),
+    0,
+  );
+
+  const activeConvTitle =
+    conversations.find((c) => c.id === currentConvId)?.title ||
+    (messages.length > 0 ? 'Current Conversation' : 'New Knowledge Chat');
+
   return (
-    <div className="flex h-full overflow-hidden bg-[#fbfbfd]">
-      {/* Conversations History Sidebar */}
-      <aside className="w-64 border-r border-zinc-200/80 bg-white/50 backdrop-blur-xl flex flex-col justify-between shrink-0 hidden md:flex">
-        <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
-          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-            Conversations
-          </span>
+    <div className="flex h-full w-full overflow-hidden bg-[#fbfbfd]">
+      {/* Desktop Conversations Sidebar */}
+      <aside className="w-72 bg-white/80 backdrop-blur-md border-r border-zinc-200/80 hidden md:flex flex-col h-full shrink-0">
+        {/* Header */}
+        <div className="p-4 border-b border-zinc-200/60 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-[#ff5c00]" />
+            <h2 className="text-xs font-bold text-zinc-800 tracking-tight uppercase">
+              Conversations
+            </h2>
+          </div>
           <button
             onClick={startNewConversation}
-            className="p-1.5 rounded-full bg-orange-50 text-[#ff5c00] hover:bg-orange-100 transition flex items-center gap-1 text-xs font-semibold px-2.5"
+            className="p-1.5 rounded-full bg-orange-50 text-[#ff5c00] hover:bg-orange-100 transition flex items-center gap-1 text-xs font-semibold px-2.5 shadow-2xs"
             title="Start New Chat"
           >
             <Plus className="w-3.5 h-3.5" /> New
@@ -222,7 +299,13 @@ export default function ChatPage() {
                 }`}
               >
                 <div className="flex items-center gap-2 overflow-hidden pr-1">
-                  <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${currentConvId === conv.id ? 'text-[#ff5c00]' : 'text-zinc-400'}`} />
+                  <MessageSquare
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      currentConvId === conv.id
+                        ? 'text-[#ff5c00]'
+                        : 'text-zinc-400'
+                    }`}
+                  />
                   <span className="truncate">{conv.title}</span>
                 </div>
                 <button
@@ -236,35 +319,87 @@ export default function ChatPage() {
             ))
           )}
         </div>
+
+        {/* Sidebar Footer with Provider Status */}
+        <div className="p-3 border-t border-zinc-200/60 text-[11px] text-zinc-500 bg-zinc-50/50">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 font-medium text-zinc-600">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              {providerInfo?.chatModel || 'Gemini 3.8 Flash'}
+            </span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
+              RAG Active
+            </span>
+          </div>
+        </div>
       </aside>
 
       {/* Main Chat Thread */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Mobile Chat Top Bar */}
-        <div className="md:hidden flex items-center justify-between px-4 py-2 border-b border-zinc-200/80 bg-white/70 backdrop-blur-md text-xs shrink-0">
-          <button
-            onClick={() => setMobileHistoryOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 text-zinc-700 font-semibold hover:bg-zinc-200 transition"
-          >
-            <Clock className="w-3.5 h-3.5 text-[#ff5c00]" />
-            <span>History ({conversations.length})</span>
-          </button>
-          <button
-            onClick={startNewConversation}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-50 text-[#ff5c00] font-semibold hover:bg-orange-100 transition"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Chat</span>
-          </button>
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+        {/* Top Chat Header Bar with Token Tracker & Model Info */}
+        <div className="px-4 py-3 border-b border-zinc-200/80 bg-white/80 backdrop-blur-md flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Mobile History Toggle */}
+            <button
+              onClick={() => setMobileHistoryOpen(true)}
+              className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 text-zinc-700 font-semibold hover:bg-zinc-200 text-xs transition"
+            >
+              <Clock className="w-3.5 h-3.5 text-[#ff5c00]" />
+              <span>History</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center text-[#ff5c00]">
+                  <Bot className="w-4 h-4" />
+                </div>
+                {/* WhatsApp online status badge */}
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+              </div>
+              <div>
+                <h1 className="text-xs font-bold text-zinc-900 truncate max-w-[220px] sm:max-w-xs">
+                  {activeConvTitle}
+                </h1>
+                <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                  <span className="text-emerald-600 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Online
+                  </span>
+                  <span>•</span>
+                  <span>{providerInfo?.chatModel || 'gemini-3.8-flash'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Session Token Showcase Counter */}
+            <div
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50/80 border border-amber-200/80 text-amber-800 text-[11px] font-mono font-semibold shadow-2xs"
+              title="Total tokens consumed in this active chat session"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+              <span>{sessionTotalTokens.toLocaleString()} tokens</span>
+            </div>
+
+            <button
+              onClick={startNewConversation}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-50 text-[#ff5c00] hover:bg-orange-100 text-xs font-semibold transition shadow-2xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">New Chat</span>
+            </button>
+          </div>
         </div>
 
+        {/* Loading Progress Indicator during conversation switch (non-blocking) */}
+        {loadingConv && (
+          <div className="h-0.5 w-full bg-gradient-to-r from-orange-400 via-amber-400 to-orange-500 animate-pulse" />
+        )}
+
         {/* Messages Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 space-y-6">
-          {loadingConv ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 text-[#ff5c00] animate-spin" />
-            </div>
-          ) : messages.length === 0 ? (
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
+          {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center max-w-lg mx-auto py-12">
               <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-400 flex items-center justify-center shadow-xl shadow-orange-500/20 mb-5">
                 <Sparkles className="w-8 h-8 text-white" />
@@ -279,19 +414,19 @@ export default function ChatPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left">
                 <button
                   onClick={() =>
-                    setInputMessage('Summarize the main points across all documents.')
+                    setInputMessage('Summarize the main points and key takeaways.')
                   }
                   className="p-4 rounded-2xl apple-glass-card hover:border-orange-300 hover:shadow-md text-xs font-medium text-zinc-700 transition"
                 >
-                  💡 "Summarize the key takeaways from all docs."
+                  💡 "Summarize the key takeaways."
                 </button>
                 <button
                   onClick={() =>
-                    setInputMessage('What are the key dates, milestones, or deadlines?')
+                    setInputMessage('What are the key experiences, roles, or highlights?')
                   }
                   className="p-4 rounded-2xl apple-glass-card hover:border-orange-300 hover:shadow-md text-xs font-medium text-zinc-700 transition"
                 >
-                  📅 "What are the key dates and milestones?"
+                  📄 "What are the key experiences and highlights?"
                 </button>
               </div>
             </div>
@@ -303,10 +438,13 @@ export default function ChatPage() {
                   msg.role === 'user' ? 'ml-auto justify-end' : 'mr-auto justify-start'
                 }`}
               >
-                {/* Assistant Avatar */}
+                {/* Assistant Avatar with Online Indicator */}
                 {msg.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-orange-50 border border-orange-200/80 flex items-center justify-center text-[#ff5c00] shrink-0 mt-1 shadow-2xs">
-                    <Bot className="w-4 h-4" />
+                  <div className="relative shrink-0 mt-1">
+                    <div className="w-8 h-8 rounded-full bg-orange-50 border border-orange-200/80 flex items-center justify-center text-[#ff5c00] shadow-2xs">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
                   </div>
                 )}
 
@@ -319,42 +457,173 @@ export default function ChatPage() {
                     }`}
                   >
                     {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm max-w-none text-zinc-800">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content || '...'}
-                        </ReactMarkdown>
+                      <div>
+                        {/* WhatsApp-Style typing & analyzing indicator when awaiting first token */}
+                        {!msg.content && isStreaming && streamingMessageId === msg.id ? (
+                          <div className="flex items-center gap-3 py-1">
+                            <div className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-zinc-100/90 text-zinc-600">
+                              <span className="w-2 h-2 rounded-full bg-[#ff5c00] animate-bounce [animation-delay:-0.32s]"></span>
+                              <span className="w-2 h-2 rounded-full bg-[#ff5c00] animate-bounce [animation-delay:-0.16s]"></span>
+                              <span className="w-2 h-2 rounded-full bg-[#ff5c00] animate-bounce"></span>
+                            </div>
+                            <span className="text-xs font-medium text-zinc-500 italic flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-[#ff5c00] animate-pulse" />
+                              {msg.citations && msg.citations.length > 0
+                                ? `Grounded in ${msg.citations.length} document sources...`
+                                : 'Analyzing documents & typing...'}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="prose prose-sm max-w-none text-zinc-800">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {msg.content}
+                            </ReactMarkdown>
+                            {/* Blinking cursor while still streaming */}
+                            {isStreaming && streamingMessageId === msg.id && (
+                              <span className="inline-block w-1.5 h-4 ml-1 bg-[#ff5c00] animate-pulse align-middle rounded-xs" />
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap">{msg.content}</p>
                     )}
                   </div>
 
-                  {/* Citations / Sources Drawer */}
-                  {msg.citations && msg.citations.length > 0 && (
-                    <div className="space-y-1.5 pt-1 pl-1">
-                      <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Layers className="w-3 h-3 text-[#ff5c00]" />
-                        Retrieved Sources ({msg.citations.length})
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {msg.citations.map((cite, idx) => (
-                          <button
-                            key={cite.chunkId || idx}
-                            onClick={() => setSelectedCitation(cite)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-zinc-200 hover:border-orange-300 hover:bg-orange-50 text-[11px] text-zinc-700 transition shadow-2xs"
+                  {/* Assistant Message Footer: Token Showcase, Citations & Copy Button */}
+                  {msg.role === 'assistant' && msg.content && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 px-1">
+                      <div className="flex items-center gap-2">
+                        {/* Showcase Token Usage Badge */}
+                        {msg.tokenCount !== undefined && msg.tokenCount > 0 && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs"
+                            title="Total tokens consumed by prompt + generation for this answer"
                           >
-                            <FileText className="w-3 h-3 text-[#ff5c00]" />
-                            <span className="font-semibold truncate max-w-[130px]">
-                              {cite.documentTitle}
-                            </span>
-                            <span className="text-[10px] text-emerald-600 font-mono font-bold bg-emerald-50 px-1.5 py-0.5 rounded-full">
-                              {Math.round(cite.similarity * 100)}% match
-                            </span>
-                          </button>
-                        ))}
+                            <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                            <span>{msg.tokenCount.toLocaleString()} tokens</span>
+                          </span>
+                        )}
+
+                        <span className="text-[10px] text-zinc-400">
+                          {new Date(msg.createdAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
                       </div>
+
+                      {/* 1-Click Copy Response */}
+                      <button
+                        onClick={() => copyMessage(msg.content, msg.id)}
+                        className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-700 px-2 py-0.5 rounded-md hover:bg-zinc-100 transition"
+                        title="Copy answer"
+                      >
+                        {copiedId === msg.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-600 font-medium">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
+
+                  {/* User Message Footer: WhatsApp-style Delivery Status */}
+                  {msg.role === 'user' && (
+                    <div className="flex items-center justify-end gap-1.5 text-[10px] text-zinc-400 pr-1">
+                      <span>
+                        {new Date(msg.createdAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
+                    </div>
+                  )}
+
+                  {/* Citations / Sources Drawer Grouped by Document */}
+                  {msg.citations && msg.citations.length > 0 && (() => {
+                    const grouped = Object.values(
+                      msg.citations.reduce((acc, cite, idx) => {
+                        const key = cite.documentId || cite.documentTitle;
+                        const partNumber =
+                          cite.chunkIndex !== undefined
+                            ? cite.chunkIndex + 1
+                            : idx + 1;
+                        if (!acc[key]) {
+                          acc[key] = {
+                            documentId: cite.documentId,
+                            documentTitle: cite.documentTitle,
+                            chunks: [] as Array<ICitation & { partNumber: number }>,
+                            maxSimilarity: cite.similarity,
+                          };
+                        }
+                        acc[key].chunks.push({ ...cite, partNumber });
+                        if (cite.similarity > acc[key].maxSimilarity) {
+                          acc[key].maxSimilarity = cite.similarity;
+                        }
+                        return acc;
+                      }, {} as Record<string, { documentId: string; documentTitle: string; chunks: Array<ICitation & { partNumber: number }>; maxSimilarity: number }>)
+                    );
+
+                    return (
+                      <div className="space-y-2 pt-1 pl-1">
+                        <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5 text-[#ff5c00]" />
+                            Retrieved Sources ({grouped.length} document{grouped.length > 1 ? 's' : ''}, {msg.citations.length} excerpt{msg.citations.length > 1 ? 's' : ''})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {grouped.map((group) => (
+                            <div
+                              key={group.documentId || group.documentTitle}
+                              className="rounded-2xl border border-zinc-200/90 bg-white/95 p-3 shadow-2xs space-y-2"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                  <div className="w-6 h-6 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-[#ff5c00] shrink-0">
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </div>
+                                  <span className="font-semibold text-xs text-zinc-900 truncate" title={group.documentTitle}>
+                                    {group.documentTitle}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-emerald-700 font-mono font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                                  Top Match: {Math.round(group.maxSimilarity * 100)}%
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                <span className="text-[10px] text-zinc-400 font-medium mr-1">
+                                  Semantic Excerpts:
+                                </span>
+                                {group.chunks.map((chunk) => (
+                                  <button
+                                    key={chunk.chunkId || `${chunk.documentId}-${chunk.partNumber}`}
+                                    onClick={() => setSelectedCitation(chunk)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-50 border border-zinc-200/80 hover:border-orange-400 hover:bg-orange-50 text-[11px] text-zinc-700 font-medium transition group shadow-2xs"
+                                    title={`Click to read excerpt from Part ${chunk.partNumber}`}
+                                  >
+                                    <span className="text-[#ff5c00] font-semibold">Part {chunk.partNumber}</span>
+                                    <span className="text-[10px] text-emerald-600 font-mono font-bold">
+                                      {Math.round(chunk.similarity * 100)}%
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* User Avatar */}
@@ -369,7 +638,7 @@ export default function ChatPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Apple Style Floating Input Capsule */}
+        {/* Floating Input Bar */}
         <div className="p-4 md:p-6 bg-gradient-to-t from-[#fbfbfd] via-[#fbfbfd]/90 to-transparent">
           <form
             onSubmit={handleSendMessage}
@@ -395,8 +664,12 @@ export default function ChatPage() {
               )}
             </button>
           </form>
-          <div className="text-center text-[11px] text-zinc-400 mt-2 font-medium">
-            AI responses grounded in your private documents via pgvector.
+          <div className="text-center text-[11px] text-zinc-400 mt-2 font-medium flex items-center justify-center gap-2">
+            <span>AI responses grounded in your private documents via pgvector.</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="hidden sm:inline font-mono text-[10px] text-zinc-500">
+              Provider: {providerInfo?.provider || 'gemini'}
+            </span>
           </div>
         </div>
       </div>
@@ -408,9 +681,12 @@ export default function ChatPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-wider text-[#ff5c00] mb-1">
-                  Source Citation
+                  Document Excerpt • Part{' '}
+                  {selectedCitation.chunkIndex !== undefined
+                    ? selectedCitation.chunkIndex + 1
+                    : 1}
                 </div>
-                <h3 className="text-lg font-bold text-zinc-900">
+                <h3 className="text-lg font-bold text-zinc-900 leading-snug">
                   {selectedCitation.documentTitle}
                 </h3>
               </div>
@@ -419,7 +695,12 @@ export default function ChatPage() {
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 font-mono leading-relaxed max-h-64 overflow-y-auto">
+            <p className="text-xs text-zinc-500">
+              This distinct vector segment was retrieved from your uploaded file
+              and provided as grounding context to the AI model.
+            </p>
+
+            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 font-mono leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap">
               {selectedCitation.snippet}
             </div>
 
@@ -456,7 +737,9 @@ export default function ChatPage() {
             </div>
             <div className="overflow-y-auto flex-1 py-3 space-y-1">
               {conversations.length === 0 ? (
-                <div className="p-6 text-center text-xs text-zinc-400">No conversations yet</div>
+                <div className="p-6 text-center text-xs text-zinc-400">
+                  No conversations yet
+                </div>
               ) : (
                 conversations.map((conv) => (
                   <div
@@ -465,35 +748,20 @@ export default function ChatPage() {
                       selectConversation(conv.id);
                       setMobileHistoryOpen(false);
                     }}
-                    className={`flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs ${
+                    className={`flex items-center justify-between p-3 rounded-2xl text-xs font-medium cursor-pointer ${
                       currentConvId === conv.id
-                        ? 'bg-orange-50 text-[#ff5c00] font-semibold shadow-xs'
+                        ? 'bg-orange-50 text-[#ff5c00] font-semibold'
                         : 'text-zinc-600 hover:bg-zinc-50'
                     }`}
                   >
-                    <span className="truncate pr-2">{conv.title}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteConversation(e, conv.id);
-                      }}
-                      className="p-1 text-zinc-400 hover:text-red-500 rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2 truncate">
+                      <MessageSquare className="w-4 h-4 shrink-0 text-[#ff5c00]" />
+                      <span className="truncate">{conv.title}</span>
+                    </div>
                   </div>
                 ))
               )}
             </div>
-            <button
-              onClick={() => {
-                startNewConversation();
-                setMobileHistoryOpen(false);
-              }}
-              className="mt-3 w-full py-3 rounded-full bg-[#ff5c00] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md shadow-orange-500/20"
-            >
-              <Plus className="w-4 h-4" /> Start New Chat
-            </button>
           </div>
         </div>
       )}

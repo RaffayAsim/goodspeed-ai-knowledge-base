@@ -1,5 +1,5 @@
 import { createClient } from './supabase';
-import { IDocument, IConversation, IMessage, ICitation, CreateDocumentDto, UpdateDocumentDto } from '@kb/types';
+import { IDocument, IConversation, IMessage, ICitation, IUsageStats, CreateDocumentDto, UpdateDocumentDto } from '@kb/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -108,6 +108,7 @@ export const chatApi = {
       embeddingModel: string;
       embeddingDimension: number;
     }>('/chat/provider-info'),
+  getUsageStats: () => apiRequest<IUsageStats>('/chat/usage-stats'),
 
   // Stream message with SSE
   streamMessage: async (
@@ -115,7 +116,7 @@ export const chatApi = {
     callbacks: {
       onDelta: (content: string) => void;
       onCitations: (citations: ICitation[], conversationId: string) => void;
-      onDone: (data: { messageId?: string; conversationId?: string }) => void;
+      onDone: (data: { messageId?: string; conversationId?: string; tokenCount?: number }) => void;
       onError: (err: string) => void;
     },
   ) => {

@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  BarChart3,
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -56,6 +57,7 @@ export default function DashboardLayout({
   const navItems = [
     { label: 'AI Chat', href: '/chat', icon: MessageSquare },
     { label: 'Documents', href: '/documents', icon: FileText },
+    { label: 'Usage & Stats', href: '/usage', icon: BarChart3 },
   ];
 
   return (

@@ -6,8 +6,34 @@ export interface ICitation {
   documentId: string;
   documentTitle: string;
   chunkId: string;
+  chunkIndex?: number;
   snippet: string;
   similarity: number;
+}
+
+export interface IUsageStats {
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalQueries: number;
+  totalResponses: number;
+  totalConversations: number;
+  documentsCount: number;
+  chunksCount: number;
+  providerInfo: {
+    provider: string;
+    chatModel: string;
+    embeddingModel: string;
+    baseUrl?: string;
+  };
+  recentQueries: Array<{
+    id: string;
+    query: string;
+    responsePreview: string;
+    tokenCount: number;
+    citationsCount: number;
+    createdAt: string;
+  }>;
 }
 
 export interface IMessage {

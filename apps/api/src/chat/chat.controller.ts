@@ -78,4 +78,10 @@ export class ChatController {
   getProviderInfo() {
     return this.openAiProvider.getProviderInfo();
   }
+
+  @Get('usage-stats')
+  @ApiOperation({ summary: 'Get token tracking, usage metrics, and RAG statistics' })
+  async getUsageStats(@CurrentUser() user: AuthenticatedUser) {
+    return this.chatService.getUsageStats(user.id);
+  }
 }

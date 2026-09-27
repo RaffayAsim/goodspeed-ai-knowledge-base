@@ -79,6 +79,7 @@ export class ChatService {
         role: m.role,
         content: m.content,
         citations: m.citations ?? [],
+        tokenCount: m.token_count ?? undefined,
         createdAt: m.created_at,
       })),
     };
@@ -195,6 +196,7 @@ export class ChatService {
         role: 'assistant',
         content: savedAssistantMsg.content,
         citations: savedAssistantMsg.citations,
+        tokenCount: savedAssistantMsg.token_count ?? undefined,
         createdAt: savedAssistantMsg.created_at,
       },
       citations,
@@ -294,7 +296,11 @@ export class ChatService {
         });
       }
 
-      // 7. Persist complete assistant message in database
+      // 7. Persist complete assistant message in database with token tracking
+      const estimatedPromptTokens = Math.ceil((dto.message.length + 1200) / 4);
+      const estimatedCompletionTokens = Math.ceil(fullContent.length / 4);
+      const totalTokenCount = estimatedPromptTokens + estimatedCompletionTokens;
+
       const { data: savedMsg } = await client
         .from('messages')
         .insert({
@@ -303,6 +309,7 @@ export class ChatService {
           role: 'assistant',
           content: fullContent,
           citations,
+          token_count: totalTokenCount,
         })
         .select()
         .single();
@@ -311,6 +318,7 @@ export class ChatService {
         type: 'done',
         messageId: savedMsg?.id,
         conversationId: convId,
+        tokenCount: totalTokenCount,
       });
 
       res.end();
@@ -324,11 +332,106 @@ export class ChatService {
     }
   }
 
+  /**
+   * Retrieves usage metrics, token stats, and recent RAG queries for the user
+   */
+  async getUsageStats(userId: string) {
+    const client = this.supabaseService.getAdminClient();
+
+    // 1. Fetch user messages for token calculation
+    const { data: messages } = await client
+      .from('messages')
+      .select('id, role, content, token_count, created_at, citations')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    // 2. Fetch document and chunk counts
+    const { count: docsCount } = await client
+      .from('documents')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    const { count: chunksCount } = await client
+      .from('document_chunks')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    // 3. Fetch conversations count
+    const { count: convsCount } = await client
+      .from('conversations')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    let totalTokens = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let totalQueries = 0;
+    let totalResponses = 0;
+
+    const allMsgs = messages || [];
+    for (const m of allMsgs) {
+      if (m.role === 'user') {
+        totalQueries++;
+        const pTok = m.token_count || Math.ceil((m.content?.length || 0) / 4) + 250;
+        promptTokens += pTok;
+        totalTokens += pTok;
+      } else if (m.role === 'assistant') {
+        totalResponses++;
+        const cTok = m.token_count || Math.ceil((m.content?.length || 0) / 4);
+        completionTokens += cTok;
+        totalTokens += cTok;
+      }
+    }
+
+    // Build recent queries log
+    const recentQueries = [];
+    for (let i = 0; i < allMsgs.length; i++) {
+      const msg = allMsgs[i];
+      if (msg && msg.role === 'user') {
+        // Find corresponding assistant response (in descending array, i-1 is the newer response)
+        const assistantResponse = i > 0 && allMsgs[i - 1]?.role === 'assistant' ? allMsgs[i - 1] : null;
+        recentQueries.push({
+          id: msg.id,
+          query: msg.content,
+          responsePreview: assistantResponse
+            ? assistantResponse.content.slice(0, 160) + (assistantResponse.content.length > 160 ? '...' : '')
+            : 'Response generated',
+          tokenCount: (msg.token_count || Math.ceil((msg.content?.length || 0) / 4) + 250) +
+            (assistantResponse?.token_count || (assistantResponse?.content ? Math.ceil(assistantResponse.content.length / 4) : 0)),
+          citationsCount: Array.isArray(assistantResponse?.citations) ? assistantResponse.citations.length : 0,
+          createdAt: msg.created_at,
+        });
+        if (recentQueries.length >= 10) break;
+      }
+    }
+
+    const providerInfo = this.aiProvider.getProviderInfo ? this.aiProvider.getProviderInfo() : {
+      provider: 'OpenAI-Compatible',
+      chatModel: 'configured',
+      embeddingModel: 'configured',
+      embeddingDimension: 1536,
+    };
+
+    return {
+      totalTokens,
+      promptTokens,
+      completionTokens,
+      totalQueries,
+      totalResponses,
+      totalConversations: convsCount || 0,
+      documentsCount: docsCount || 0,
+      chunksCount: chunksCount || 0,
+      providerInfo,
+      recentQueries,
+    };
+  }
+
   private extractCitations(chunks: RetrievedChunk[]): ICitation[] {
     return chunks.map((c) => ({
       documentId: c.documentId,
       documentTitle: c.documentTitle,
       chunkId: c.chunkId,
+      chunkIndex: c.chunkIndex,
       snippet: c.content.slice(0, 200) + (c.content.length > 200 ? '...' : ''),
       similarity: c.similarity,
     }));
